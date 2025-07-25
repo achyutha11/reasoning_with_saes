@@ -8,7 +8,7 @@ from scipy.stats import trim_mean
 import numpy as np
 
 
-def get_reasoning_features(trivia_examples, k=10, model_name='deepseek-ai/DeepSeek-R1-Distill-Llama-8B', sae_release="llama_scope_r1_distill", sae_id= "l25r_400m_slimpajama_400m_openr1_math"):
+def get_reasoning_features(trivia_examples=250, k=10, model_name='deepseek-ai/DeepSeek-R1-Distill-Llama-8B', sae_release="llama_scope_r1_distill", sae_id= "l25r_400m_slimpajama_400m_openr1_math", sae_layer=25):
     # Todo: make these customizable
     model, tokenizer = load_model(model_name)
     sae = load_sae(sae_release, sae_id)
@@ -21,17 +21,14 @@ def get_reasoning_features(trivia_examples, k=10, model_name='deepseek-ai/DeepSe
     for index, question in enumerate(tqdm(aqua_ds)):
         prompt = format_prompt_aqua(question, reasoning=False, include_options=False)
         inputs = tokenizer(prompt, return_tensors='pt').to(model.device)
-        # Fix hardcoded layer
-        aqua_means[index, :] = get_sae_acts(inputs, 25)
+        aqua_means[index, :] = get_sae_acts(inputs, sae_layer)
 
-    # Fix the hardcoded num examples
     trivia_means = torch.zeros((trivia_examples, sae.cfg.d_sae))
 
     for index, question in enumerate(tqdm(trivia_ds[:trivia_examples]['question'])):
         prompt = format_prompt_trivia(question, reasoning=False)
         inputs = tokenizer(prompt, return_tensors='pt').to(model.device)
-        # Fix hardcoded layer
-        trivia_means[index, :] = get_sae_acts(inputs, 25)
+        trivia_means[index, :] = get_sae_acts(inputs, sae_layer)
 
     mean_aqua = trim_mean(aqua_means.detach(), proportiontocut=0.05, axis=0)
     mean_trivia = trim_mean(trivia_means.detach(), proportiontocut=0.05, axis=0)

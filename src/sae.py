@@ -4,9 +4,7 @@ import torch
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 def load_sae(release, sae_id):
-    release = "llama_scope_r1_distill"
-    sae_id = "l25r_400m_slimpajama_400m_openr1_math"
-    sae = SAE.from_pretrained(release, sae_id)
+    sae = SAE.from_pretrained_with_cfg_and_sparsity(release, sae_id)
     sae = sae.to(device)
     return sae
 
