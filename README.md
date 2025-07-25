@@ -1,2 +1,2 @@
-# oth_faithful_cot
-Repository for reproducing "On the Hardness of Faithful CoT" (Tanneru et al., 2024)
+# Reasoning with SAEs
+Repository containing code for a project investigating reasoning and faithfulness using SAEs. 
