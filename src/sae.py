@@ -9,7 +9,6 @@ def load_sae(release, sae_id):
     return sae
 
 def get_sae_acts(model, sae, text, layer, agg='mean'):
-    model.eval()
     with torch.no_grad():
         outputs = model(**text, output_hidden_states=True, return_dict=True)
     hidden_states = outputs.hidden_states
