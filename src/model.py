@@ -15,6 +15,8 @@ def load_model(model_name):
         quantization_config=bnb_config
     )
 
+    model.eval()
+
     tokenizer = AutoTokenizer.from_pretrained(model_name)
 
     return model, tokenizer
