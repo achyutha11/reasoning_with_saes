@@ -38,9 +38,6 @@ def get_ds_saes(sae, layer, prompts, model, collate_fn, batch_size=8, agg='mean'
             end = start + batch_feats.shape[0]
             sae_mat[start:end] = batch_feats.cpu()
 
-    # torch.cuda.empty_cache()
-    # gc.collect()
-
     return sae_mat
 
 def get_reasoning_features(trivia_examples=250, k=10, model_name='deepseek-ai/DeepSeek-R1-Distill-Llama-8B', sae_release="llama_scope_r1_distill", sae_id= "l25r_400m_slimpajama_400m_openr1_math", sae_layer=25):
@@ -51,7 +48,7 @@ def get_reasoning_features(trivia_examples=250, k=10, model_name='deepseek-ai/De
     aqua_ds = load_aqua()
     trivia_ds = load_trivia()
 
-    aq_prompts = [format_prompt_aqua(q, reasoning=False, include_options=False) for q in aqua_ds['question']]
+    aq_prompts = [format_prompt_aqua(query, reasoning=False, include_options=False) for query in aqua_ds]
     aq_tokenized = tokenizer(aq_prompts, return_tensors='pt', padding=True, truncation=True)
     aq_collate_fn = partial(collate_tokenized, tokenized=aq_tokenized)
 
