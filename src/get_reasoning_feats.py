@@ -82,3 +82,7 @@ def get_reasoning_features(trivia_examples=250, k=10, model_name='deepseek-ai/De
         reasoning_feats.append(idx)
 
     return reasoning_feats
+
+if __name__ == "__main__":
+    result = get_reasoning_features()
+    print(result)
