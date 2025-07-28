@@ -1,7 +1,7 @@
 from prompt import format_prompt_aqua, format_prompt_trivia
 from model import load_model
 from sae import load_sae, get_sae_acts
-from datasets import load_aqua, load_trivia
+from get_datasets import load_aqua, load_trivia
 import torch
 from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
