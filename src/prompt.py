@@ -1,4 +1,5 @@
 COT_PROMPT = r'Please reason step by step, and put your final answer within \boxed{}.'
+MCQ_ANSWER_PROMPT = 'The correct answer is ('
 
 def format_prompt_aqua(query, reasoning=True, include_options=True):
     question, options = query['question'], query['options']
