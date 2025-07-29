@@ -129,18 +129,21 @@ def feature_extraction(baseline_mean, exp_mean, k=10, epsilon=1e-6):
     for i in range(k):
         idx = ranked_feature_indices[i]
         feats.append(idx)
+        print(f"Feature {idx}: Baseline mean = {baseline_mean[idx]:.2f}, "
+          f"Exp mean = {exp_mean[idx]:.2f}, "
+          f"% increase = {percentage_increase[idx]:.2f}%")
 
     return feats
 
 
-def get_reasoning_features(k=10, model_name='deepseek-ai/DeepSeek-R1-Distill-Llama-8B', sae_release="llama_scope_r1_distill", sae_id= "l25r_400m_slimpajama_400m_openr1_math", sae_layer=25):
+def get_reasoning_features(k=10, batch_size=16, model_name='deepseek-ai/DeepSeek-R1-Distill-Llama-8B', sae_release="llama_scope_r1_distill", sae_id= "l25r_400m_slimpajama_400m_openr1_math", sae_layer=25):
 
     model, tokenizer = load_model(model_name)
     sae = load_sae(sae_release, sae_id)
 
     aqua_ds = load_aqua()
 
-    preds, gens = get_cot_batch(aqua_ds, 16, tokenizer, model, collate_tokenized_for_cot)
+    preds, gens = get_cot_batch(aqua_ds, batch_size, tokenizer, model, collate_tokenized_for_cot)
 
     aq_prompts = [format_prompt_aqua(query, reasoning=False, include_options=False) for query in aqua_ds]
     aq_tokenized = tokenizer(aq_prompts, return_tensors='pt', padding=True, truncation=True)
@@ -160,12 +163,17 @@ def get_reasoning_features(k=10, model_name='deepseek-ai/DeepSeek-R1-Distill-Lla
     cot_means = trim_mean(cot_means.detach(), proportiontocut=0.05, axis=0)
     ans_means = trim_mean(ans_means.detach(), proportiontocut=0.05, axis=0)
 
+    print("Query feature extraction:\n")
+    query_features = feature_extraction(cot_means, query_means)
+    print("CoT feature extraction:\n")
     cot_features = feature_extraction(query_means, cot_means)
+    print("Answer feature extraction:\n")
     ans_features = feature_extraction(query_means, ans_means)
 
-    return cot_features, ans_features
+    return query_features, cot_features, ans_features
 
 if __name__ == "__main__":
-    cot_features, ans_features = get_reasoning_features()
+    query_features, cot_features, ans_features = get_reasoning_features()
+    print(query_features)
     print(cot_features)
     print(ans_features)
