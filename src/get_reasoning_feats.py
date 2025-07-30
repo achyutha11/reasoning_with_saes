@@ -1,4 +1,4 @@
-from prompt import format_prompt_aqua, format_prompt_trivia, MCQ_ANSWER_PROMPT
+from prompt import format_prompt_aqua, MCQ_ANSWER_PROMPT
 from model import load_model
 from sae import load_sae, get_sae_acts
 from get_datasets import load_aqua, load_trivia
@@ -146,16 +146,25 @@ def get_reasoning_features(k=10, batch_size=16, model_name='deepseek-ai/DeepSeek
 
     aqua_ds = load_aqua()
 
-    qs, preds, cots = get_cot_batch(aqua_ds, batch_size, tokenizer, model, collate_tokenized_for_cot)
+    # qs, preds, cots = get_cot_batch(aqua_ds, batch_size, tokenizer, model, collate_tokenized_for_cot)
 
-    with open('../data/query_list.pkl', 'wb') as f:
-        pickle.dump(qs, f)
+    # with open('../data/query_list.pkl', 'wb') as f:
+    #     pickle.dump(qs, f)
 
-    with open('../data/preds_list.pkl', 'wb') as f:
-        pickle.dump(preds, f)
+    # with open('../data/preds_list.pkl', 'wb') as f:
+    #     pickle.dump(preds, f)
 
-    with open('../data/cot_list.pkl', 'wb') as f:
-        pickle.dump(cots, f)
+    # with open('../data/cot_list.pkl', 'wb') as f:
+    #     pickle.dump(cots, f)
+
+    # with open('../data/query_list.pkl', 'rb') as f:
+    #     qs = pickle.load(f)
+
+    with open('../data/preds_list.pkl', 'rb') as f:
+        preds = pickle.load(f)
+
+    with open('../data/cot_list.pkl', 'rb') as f:
+        cots = pickle.load(f)
 
     aq_prompts = [format_prompt_aqua(query, reasoning=False, include_options=False) for query in aqua_ds]
     aq_tokenized = tokenizer(aq_prompts, return_tensors='pt', padding=True, truncation=True)
