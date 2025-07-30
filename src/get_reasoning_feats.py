@@ -200,8 +200,8 @@ if __name__ == "__main__":
     with open('../data/query_feats.pkl', 'wb') as f:
         pickle.dump(query_features, f)
 
-    with open('../data/preds_feats.pkl', 'wb') as f:
+    with open('../data/cot_feats.pkl', 'wb') as f:
         pickle.dump(cot_features, f)
 
-    with open('../data/cot_feats.pkl', 'wb') as f:
+    with open('../data/preds_feats.pkl', 'wb') as f:
         pickle.dump(ans_features, f)
