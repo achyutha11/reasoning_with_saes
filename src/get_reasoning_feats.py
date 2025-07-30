@@ -9,6 +9,7 @@ from scipy.stats import trim_mean
 import numpy as np
 from functools import partial
 import string
+import pickle
 
 class IndexedPromptDataset(Dataset):
     def __init__(self, num_examples):
@@ -75,6 +76,7 @@ def get_cot_batch(ds, batch_size, tokenizer, model, collate_fn):
     dataset = TokenizedPromptDataset(tokenized, ds)
     dataloader = DataLoader(dataset, batch_size=batch_size, collate_fn=collate_fn)
 
+    all_questions = []
     all_preds = []
     all_generations = []
 
@@ -111,8 +113,9 @@ def get_cot_batch(ds, batch_size, tokenizer, model, collate_fn):
             logits = out.logits[i, -1, valid_ids]
             pred_idx = torch.argmax(logits).item()
             all_preds.append(letters[pred_idx])
+            all_questions.append(query)
 
-    return all_preds, all_generations
+    return all_questions, all_preds, all_generations
 
 def feature_extraction(baseline_mean, exp_mean, k=10, epsilon=1e-6):
 
@@ -143,16 +146,25 @@ def get_reasoning_features(k=10, batch_size=16, model_name='deepseek-ai/DeepSeek
 
     aqua_ds = load_aqua()
 
-    preds, gens = get_cot_batch(aqua_ds, batch_size, tokenizer, model, collate_tokenized_for_cot)
+    qs, preds, cots = get_cot_batch(aqua_ds, batch_size, tokenizer, model, collate_tokenized_for_cot)
+
+    with open('../data/query_list.pkl', 'wb') as f:
+        pickle.dump(qs, f)
+
+    with open('../data/preds_list.pkl', 'wb') as f:
+        pickle.dump(preds, f)
+
+    with open('../data/cot_list.pkl', 'wb') as f:
+        pickle.dump(cots, f)
 
     aq_prompts = [format_prompt_aqua(query, reasoning=False, include_options=False) for query in aqua_ds]
     aq_tokenized = tokenizer(aq_prompts, return_tensors='pt', padding=True, truncation=True)
     aq_collate_fn = partial(collate_tokenized, tokenized=aq_tokenized)
     query_means = get_ds_saes(sae, sae_layer, aq_prompts, model, collate_fn=aq_collate_fn, agg='mean')
 
-    cot_tokenized = tokenizer(gens, return_tensors='pt', padding=True, truncation=True)
+    cot_tokenized = tokenizer(cots, return_tensors='pt', padding=True, truncation=True)
     cot_collate_fn = partial(collate_tokenized, tokenized=cot_tokenized)
-    cot_means = get_ds_saes(sae, sae_layer, gens, model, collate_fn=cot_collate_fn, agg='mean')
+    cot_means = get_ds_saes(sae, sae_layer, cots, model, collate_fn=cot_collate_fn, agg='mean')
 
     answers = ["The correct answer is (" + i + ")" for i in preds]
     ans_tokenized = tokenizer(answers, return_tensors='pt', padding=True, truncation=True)
@@ -173,7 +185,14 @@ def get_reasoning_features(k=10, batch_size=16, model_name='deepseek-ai/DeepSeek
     return query_features, cot_features, ans_features
 
 if __name__ == "__main__":
+
     query_features, cot_features, ans_features = get_reasoning_features()
-    print(query_features)
-    print(cot_features)
-    print(ans_features)
+
+    with open('../data/query_feats.pkl', 'wb') as f:
+        pickle.dump(query_features, f)
+
+    with open('../data/preds_feats.pkl', 'wb') as f:
+        pickle.dump(cot_features, f)
+
+    with open('../data/cot_feats.pkl', 'wb') as f:
+        pickle.dump(ans_features, f)
