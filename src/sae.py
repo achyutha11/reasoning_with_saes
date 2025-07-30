@@ -28,9 +28,17 @@ def get_sae_acts(model, sae, input_batch, layer, agg='mean'):
     raw_feats = sae.encode(hidden_states)
 
     if agg == 'mean':
-        result= raw_feats.mean(dim=1)
+        mask = input_batch['attention_mask'].unsqueeze(-1)
+        masked_feats = raw_feats * mask
+        lengths = mask.sum(dim=1).clamp(min=1)
+        result = masked_feats.sum(dim=1) / lengths
     elif agg == 'last':
-        result = raw_feats[:, -1]
+        last_token_idxs = input_batch['attention_mask'].sum(dim=1) - 1
+        batch_indices = torch.arange(raw_feats.size(0), device=raw_feats.device)
+        result = raw_feats[batch_indices, last_token_idxs]
+    elif agg == 'none':
+        mask = input_batch['attention_mask'].unsqueeze(-1)
+        result = raw_feats * mask
 
     del hidden_states, raw_feats
 
