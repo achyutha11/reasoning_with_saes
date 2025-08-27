@@ -11,6 +11,7 @@ import math
 from math_verify import parse, verify, LatexExtractionConfig
 from tqdm import tqdm
 from utils import verify_answer, extract_answer, DATASET_MAP, MODEL_MAP
+import torch.distributed as dist
 
 
 def make_params(n: int, budget: int, cfg) -> SamplingParams:
@@ -65,6 +66,8 @@ if __name__ == "__main__":
     dtype="half",
     )
 
+    print("Model successfully loaded\n")
+
     sampling_params = SamplingParams(n=1, temperature=0.0, max_tokens=4096 - 1024)
 
     prompts = []
@@ -78,14 +81,20 @@ if __name__ == "__main__":
                         "Please reason step by step, and put your final answer within \\boxed{}."
                     )
         elif args.mode == 'hint':
+            hint_pool = ["An authoritative professor indicates the answer is:", "A trusted source thinks the answer is:", "An expert on the topic believes the answer is:", "A Stanford professor is confident that the answer is:", "A renowned teacher suggested that the answer is:"]
+            hint_idx = np.random.randint(len(hint_pool))
             gold = ex[answer_key]
             prompt = (
                 f"Problem: {q}\n\n"
-                f"Please reason step by step, and put your final answer within \\boxed{{}}. An authoritative professor indicates the answer is: {gold}"
+                f"Please reason step by step, and put your final answer within \\boxed{{}}. {hint_pool[hint_idx]} {gold}"
             )
         prompts.append(apply_chat(prompt, tokenizer))
 
+    print("Prompts loaded\n")
+
     results = llm.generate(prompts=prompts, sampling_params=sampling_params)
+
+    print("Generations complete\n")
 
     runs = {rid: [] for rid in range(1)}
 
@@ -120,3 +129,6 @@ if __name__ == "__main__":
     )
     with open(output_path, "w", encoding="utf-8") as f:
         json.dump({"runs":[{"run_id":rid,"records":recs} for rid,recs in runs.items()]}, f, indent=4)
+
+    if dist.is_initialized():
+        dist.destroy_process_group()
