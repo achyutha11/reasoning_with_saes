@@ -55,20 +55,34 @@ if __name__ == "__main__":
     question_key = DATASET_MAP[args.dataset]["question_key"]
     answer_key   = DATASET_MAP[args.dataset]["answer_key"]
 
+    if args.dataset == "AIME2024":
+        override_28 = r"""Torus $T$ is the surface produced by revolving a circle with radius $3$ around an axis in the plane of the circle that is a distance $6$ from the center of the circle (so like a donut). Let $S$ be a sphere with a radius $11$. When $T$ rests on the inside of $S$, it is internally tangent to $S$ along a circle with radius $r_i$, and when $T$ rests on the outside of $S$, it is externally tangent to $S$ along a circle with radius $r_o$. The difference $r_i-r_o$ can be written as $\tfrac{m}{n}$, where $m$ and $n$ are relatively prime positive integers. Find $m+n$.
+[asy] unitsize(0.3 inch); draw(ellipse((0,0), 3, 1.75)); draw((-1.2,0.1)..(-0.8,-0.03)..(-0.4,-0.11)..(0,-0.15)..(0.4,-0.11)..(0.8,-0.03)..(1.2,0.1)); draw((-1,0.04)..(-0.5,0.12)..(0,0.16)..(0.5,0.12)..(1,0.04)); draw((0,2.4)--(0,-0.15)); draw((0,-0.15)--(0,-1.75), dashed); draw((0,-1.75)--(0,-2.25)); draw(ellipse((2,0), 1, 0.9)); draw((2.03,-0.02)--(2.9,-0.4)); [/asy]"""
+
+        # Override only the example at index 28
+        ds = ds.map(
+            lambda example, idx: {"problem": override_28} if idx == 28 else example,
+            with_indices=True
+        )
+
+    if args.dataset == "MMLU-Pro-math":
+        ds = ds.filter(lambda ex: ex["category"] == "math")
+        options_key = DATASET_MAP[args.dataset]["options_key"]
+
     model_id = MODEL_MAP[args.model]
     max_pos = AutoConfig.from_pretrained(model_id).max_position_embeddings
     cfg = GenerationConfig.from_pretrained(model_id)
     tokenizer = AutoTokenizer.from_pretrained(model_id)
 
     llm = LLM(
-    model=model_id,
-    max_model_len=4096,
-    dtype="half",
+        model=model_id,
+        max_model_len=max_pos,
+        dtype="half",
     )
 
     print("Model successfully loaded\n")
 
-    sampling_params = SamplingParams(n=1, temperature=0.0, max_tokens=4096 - 1024)
+    sampling_params = SamplingParams(n=1, temperature=0.0, max_tokens=max_pos - 1024)
 
     prompts = []
     hints = []
@@ -102,6 +116,8 @@ if __name__ == "__main__":
 
     for idx, gen in enumerate(results):
         gold = ds[idx][answer_key]
+        if args.dataset == "gpqa":
+            gold = extract_answer(gold)
         for rid, out in enumerate(gen.outputs):
             text = out.text.strip()
             # prediction extraction
