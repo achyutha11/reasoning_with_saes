@@ -76,13 +76,13 @@ if __name__ == "__main__":
 
     llm = LLM(
         model=model_id,
-        max_model_len=max_pos,
+        max_model_len=16384,
         dtype="half",
     )
 
     print("Model successfully loaded\n")
 
-    sampling_params = SamplingParams(n=1, temperature=0.0, max_tokens=max_pos - 1024)
+    sampling_params = SamplingParams(n=1, temperature=0.0, max_tokens=16384 - 1024)
 
     prompts = []
     hints = []
