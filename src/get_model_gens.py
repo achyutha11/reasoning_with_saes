@@ -44,6 +44,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--dataset", choices=DATASET_MAP.keys(), default="MATH-500")
     parser.add_argument("--model", choices=MODEL_MAP.keys(), default="qwen3-8b")
+    parser.add_argument("--step")
     parser.add_argument(
         "--mode", type=str, choices=["normal", "hint", "hintaug", "unethical"], default="normal",
         help="normal: normal inference; hint: inference with professor hint; hintaug: inference with augmented prompt; unethical: inference with unethical prompt"
@@ -68,6 +69,9 @@ if __name__ == "__main__":
     if args.dataset == "MMLU-Pro-math":
         ds = ds.filter(lambda ex: ex["category"] == "math")
         options_key = DATASET_MAP[args.dataset]["options_key"]
+
+    if args.dataset == "openr1-math":
+        ds = ds.select(range(int(args.step) * 2500, (int(args.step) + 1) * 2500))
 
     model_id = MODEL_MAP[args.model]
     max_pos = AutoConfig.from_pretrained(model_id).max_position_embeddings
@@ -143,7 +147,7 @@ if __name__ == "__main__":
 
     os.makedirs(f"{args.mode}_results/{args.dataset}/{args.model}", exist_ok=True)
     output_path = (
-        f"{args.mode}_results/{args.dataset}/{args.model}/"
+        f"{args.mode}_results/{args.dataset}/{args.model}/{args.step}/"
         "1_runs.json"
     )
     with open(output_path, "w", encoding="utf-8") as f:

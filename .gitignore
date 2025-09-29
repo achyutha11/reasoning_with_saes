@@ -5,6 +5,11 @@ __pycache__/
 *.pyd
 *.so
 
+# Data
+*.pt
+*.png
+*.pkl
+
 # Virtual environments
 .env
 .venv

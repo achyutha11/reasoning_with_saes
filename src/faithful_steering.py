@@ -120,7 +120,7 @@ if __name__ == "__main__":
     normal_filtered = []
     hint_filtered = []
 
-    for dataset in ['gsm8k', 'MATH-500', 'AIME2024', 'gpqa', 'AIME2025']:
+    for dataset in ['gsm8k', 'MATH-500', 'AIME2024', 'gpqa', 'AIME2025', 'MMLU-Pro-math']:
         with open(f"../src/normal_results/{dataset}/deepseek-llama3-8b/1_runs.json", "r") as f:
             normal_results = json.load(f)
 
@@ -132,7 +132,7 @@ if __name__ == "__main__":
         hint_recs = hint_results['runs'][0]['records']
         rl = 3070 if dataset == 'gsm8k' else 15000
         for index, question in enumerate(normal_recs):
-            if not question['correct'] and hint_recs[index]['correct'] and question['reasoning_length'] < rl and question['prediction'].split("\\%")[0] != question['gold']:
+            if not question['correct'] and hint_recs[index]['correct'] and question['reasoning_length'] < rl and str(question['prediction']).split("\\%")[0] != question['gold']:
                 incor_to_cor.append(index)
 
         for index in incor_to_cor:
@@ -163,47 +163,26 @@ if __name__ == "__main__":
 
     questions = ["Problem: " + i['question'] + "\n\n" + "Please reason step by step, and put your final answer within \\boxed{}. " + i['hint'] + " " + i['gold'] for i in hint_filtered]
 
-    l12_v = get_steering_vec(12, faithful_dl, unfaithful_dl, model)
-    l16_v = get_steering_vec(16, faithful_dl, unfaithful_dl, model)
+    l18_v = get_steering_vec(18, faithful_dl, unfaithful_dl, model)
     l20_v = get_steering_vec(20, faithful_dl, unfaithful_dl, model)
-    l24_v = get_steering_vec(24, faithful_dl, unfaithful_dl, model)
-    l28_v = get_steering_vec(28, faithful_dl, unfaithful_dl, model)
+    l22_v = get_steering_vec(22, faithful_dl, unfaithful_dl, model)
 
     steering_configs = [
-        ("baseline", 12, 0, l12_v),
-        ("l12_0.5m", 12, -0.5, l12_v),
-        ("l12_1m", 12, -1.0, l12_v),
-        ("l12_1.5m", 12, -1.5, l12_v),
-        ("l12_0.5p", 12, 0.5, l12_v),
-        ("l12_1p", 12, 1.0, l12_v),
-        ("l12_1.5p", 12, 1.5, l12_v),
-        ("l16_0.5m", 16, -0.5, l16_v),
-        ("l16_1m", 16, -1.0, l16_v),
-        ("l16_1.5m", 16, -1.5, l16_v),
-        ("l16_0.5p", 16, 0.5, l16_v),
-        ("l16_1p", 16, 1.0, l16_v),
-        ("l16_1.5p", 16, 1.5, l16_v),
-        ("l20_0.5m", 20, -0.5, l20_v),
-        ("l20_1m", 20, -1.0, l20_v),
-        ("l20_1.5m", 20, -1.5, l20_v),
-        ("l20_0.5p", 20, 0.5, l20_v),
-        ("l20_1p", 20, 1.0, l20_v),
-        ("l20_1.5p", 20, 1.5, l20_v),
-        ("l24_0.5m", 24, -0.5, l24_v),
-        ("l24_1m", 24, -1.0, l24_v),
-        ("l24_1.5m", 24, -1.5, l24_v),
-        ("l24_0.5p", 24, 0.5, l24_v),
-        ("l24_1p", 24, 1.0, l24_v),
-        ("l24_1.5p", 24, 1.5, l24_v)
-        ("l28_0.5m", 28, -0.5, l28_v),
-        ("l28_1m", 28, -1.0, l28_v),
-        ("l28_1.5m", 28, -1.5, l28_v),
-        ("l28_0.5p", 28, 0.5, l28_v),
-        ("l28_1p", 28, 1.0, l28_v),
-        ("l28_1.5p", 28, 1.5, l28_v)
+        ("baseline", 18, 0, l18_v),
+        ("l18_0.25", 18, 0.25, l18_v),
+        ("l18_0.5", 18, 0.5, l18_v),
+        ("l18_0.75", 18, 0.75, l18_v),
+        ("l18_1.0", 18, 1.0, l18_v),
+        ("l20_0.25", 20, 0.25, l20_v),
+        ("l20_0.75", 20, 0.75, l20_v),
+        ("l22_0.25", 22, 0.25, l22_v),
+        ("l22_0.5", 22, 0.5, l22_v),
+        ("l22_0.75", 22, 0.75, l22_v),
+        ("l22_1.0", 22, 1.0, l22_v),
     ]
 
     results = {}
+    count = 0
 
     for name, layer_idx, alpha, v in steering_configs:
 
@@ -216,7 +195,7 @@ if __name__ == "__main__":
 
         # Iterate over prompts, generate in batches
         for i in tqdm(range(0, len(questions), batch_size)):
-            data = hint_filtered[i]
+            batch_data = hint_filtered[i:i+batch_size]
             batch_prompts = questions[i:i+batch_size]
 
             batch_prompts = [
@@ -238,7 +217,7 @@ if __name__ == "__main__":
             all_decoded.extend(responses)
 
             # Update refusal count based on generated text
-            faithful_count += sum(bool(re.search(EXP_MAP[data['hint']], text)) for text in responses)
+            faithful_count += sum(bool(re.search(EXP_MAP[d['hint']], text)) for d, text in zip(batch_data, responses))
 
         handle.remove()
 
@@ -247,6 +226,10 @@ if __name__ == "__main__":
             json.dump(all_decoded, f)
         faithful_rate = faithful_count / len(questions)
         results[name] = faithful_rate
+
+        count += 1
+
+        print(f"Completed {name}. {len(steering_configs) - count} configs remaining.\n")
 
     with open("steering_results.pkl", "wb") as f:
         pickle.dump(results, f)
