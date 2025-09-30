@@ -1,2 +1,2 @@
-# Reasoning with SAEs
-Repository containing code for a project investigating reasoning and faithfulness using SAEs. 
+# Steering Faithfulness [WiP]
+Repository containing code for a project investigating faithfulness using a steering-based approach.
