@@ -120,16 +120,18 @@ def make_hook(alpha, steering_vec):
     return steering_hook
 
 
-def run_steering_exp(name, layer, alpha, steering_vec, questions):
+def run_steering_exp(name, model_name, model, layer, alpha, steering_vec, question_data):
     """
     Run the steering experiment at a particular layer given a vector and alpha value.
 
     Inputs:
         name (str): Name for the experiment
+        model_name (str): Name for the model
+        model: Model to be used for generation
         layer (int): Layer at which steering should be done
         alpha (float): Amount by which steering vector should be scaled
         steering_vec (tensor): Vector encoding a particular trait
-        questions (lst): List of questions
+        question_data (lst): List of question prompt data
 
     Outputs:
         faithful_rate (float): Proportion of responses that are faithful when steering is applied with the specified parameters.
@@ -141,12 +143,14 @@ def run_steering_exp(name, layer, alpha, steering_vec, questions):
     all_decoded = []
     batch_size = 8
 
+    questions = ["Problem: " + i['question'] + "\n\n" + "Please reason step by step, and put your final answer within \\boxed{}. " + i['hint'] + " " + i['gold'] for i in question_data]
+
     # Add hook for steering generation
     handle = model.model.layers[layer].register_forward_hook(make_hook(alpha, steering_vec))
 
     # Iterate over prompts, generate in batches
     for i in tqdm(range(0, len(questions), batch_size)):
-        batch_data = hint_filtered[i:i+batch_size]
+        batch_data = question_data[i:i+batch_size]
         batch_prompts = questions[i:i+batch_size]
 
         # Get prompts into the correct format (same as original generation setting)
@@ -178,8 +182,8 @@ def run_steering_exp(name, layer, alpha, steering_vec, questions):
     handle.remove()
 
     # Save steered text generations
-    os.makedirs(f"{args.mode}_results/{args.dataset}/{args.model}", exist_ok=True)
-    with open(f"{name}_gen.json", "w") as f:
+    os.makedirs(f"../results/steered_gens/{model_name}", exist_ok=True)
+    with open(f"../results/steered_gens/{model_name}/{name}_gen.json", "w") as f:
         json.dump(all_decoded, f)
 
     # Find faithful rate
@@ -257,9 +261,6 @@ if __name__ == "__main__":
 
     results = {}
 
-    questions = ["Problem: " + i['question'] + "\n\n" + "Please reason step by step, and put your final answer within \\boxed{}. " + i['hint'] + " " + i['gold'] for i in hint_filtered]
-    results['baseline'] = run_steering_exp('baseline', layer_list[0], 0, torch.zeros(4096), questions)
-
     for layer in layer_list:
 
         # Obtain steering vector
@@ -268,18 +269,18 @@ if __name__ == "__main__":
         steering_configs = []
 
         for alpha in alpha_list:
-            tup = (f"{args.model}_l{layer}_{alpha}", layer, alpha, steering_vec)
+            tup = (f"l{layer}_{alpha}", layer, alpha, steering_vec)
             steering_configs.append(tup)
 
         count = 0
 
         for name, layer_idx, alpha, v in steering_configs:
 
-            results[name] = run_steering_exp(name, layer_idx, alpha, v, questions)
+            results[name] = run_steering_exp(name, args.model, model, layer_idx, alpha, v, hint_filtered)
 
             count += 1
 
             print(f"Completed {name}. {len(steering_configs) - count} configs remaining.\n")
 
-    with open(f"{args.model}_steering_results.pkl", "wb") as f:
+    with open(f"../results/data/{args.model}_steering_results.pkl", "wb") as f:
         pickle.dump(results, f)
