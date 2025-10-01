@@ -1,9 +1,5 @@
-import os
-import json
 import re
 import math
-import numpy as np
-# from math_grader import strip_string
 from math_verify import parse, verify, LatexExtractionConfig
 
 DATASET_MAP = {

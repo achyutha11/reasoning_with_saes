@@ -8,15 +8,14 @@ bnb_config = BitsAndBytesConfig(
     llm_int8_enable_fp32_cpu_offload=True
 )
 
-def load_model(model_name):
-    model_name = 'deepseek-ai/DeepSeek-R1-Distill-Llama-8B'
+def load_model(model_id):
     model = AutoModelForCausalLM.from_pretrained(
-        model_name,
+        model_id,
         quantization_config=bnb_config
     )
 
     model.eval()
 
-    tokenizer = AutoTokenizer.from_pretrained(model_name)
+    tokenizer = AutoTokenizer.from_pretrained(model_id)
 
     return model, tokenizer

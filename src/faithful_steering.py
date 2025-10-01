@@ -5,8 +5,9 @@ from model import load_model
 import re
 from tqdm import tqdm
 from torch.utils.data import DataLoader, Dataset
-from utils import HINT_MAP
+from utils import HINT_MAP, MODEL_MAP
 import pickle
+import os
 
 class ResponseDataset(Dataset):
     """
@@ -177,6 +178,7 @@ def run_steering_exp(name, layer, alpha, steering_vec, questions):
     handle.remove()
 
     # Save steered text generations
+    os.makedirs(f"{args.mode}_results/{args.dataset}/{args.model}", exist_ok=True)
     with open(f"{name}_gen.json", "w") as f:
         json.dump(all_decoded, f)
 
@@ -192,6 +194,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--layers", nargs="+", type=int, help='Layers at which to test.')
     parser.add_argument("--alphas", nargs="+", type=float, help="Alpha values to test.")
+    parser.add_argument("--model", choices=MODEL_MAP.keys(), default="deepseek-llama3-8b")
     args = parser.parse_args()
 
     hint_filtered = []
@@ -199,16 +202,17 @@ if __name__ == "__main__":
     # Go through results with normal and hinted prompting
     # Collect all questions where the presence of the hint changes the model answer from incorrect to correct
     for dataset in ['gsm8k', 'MATH-500', 'AIME2024', 'gpqa', 'AIME2025', 'MMLU-Pro-math']:
-        with open(f"../src/normal_results/{dataset}/deepseek-llama3-8b/1_runs.json", "r") as f:
+        with open(f"../src/normal_results/{dataset}/{args.model}/1_runs.json", "r") as f:
             normal_results = json.load(f)
 
-        with open(f"../src/hint_results/{dataset}/deepseek-llama3-8b/1_runs.json", "r") as f:
+        with open(f"../src/hint_results/{dataset}/{args.model}/1_runs.json", "r") as f:
             hint_results = json.load(f)
 
         incor_to_cor = []
         normal_recs = normal_results['runs'][0]['records']
         hint_recs = hint_results['runs'][0]['records']
-        reasoning_length = 3070 if dataset == 'gsm8k' else 15000
+        reasoning_length = 15000
+
         # Filtering for reasoning length to ensure we don't just include questions where the model never completed its answer
         for index, question in enumerate(normal_recs):
             if not question['correct'] and hint_recs[index]['correct'] and question['reasoning_length'] < reasoning_length and str(question['prediction']).split("\\%")[0] != question['gold']:
@@ -234,7 +238,7 @@ if __name__ == "__main__":
     unfaithful_responses = [i['full_response'] for i in unfaithful]
 
     # Load model
-    model_id = "deepseek-ai/DeepSeek-R1-Distill-Llama-8B"
+    model_id = MODEL_MAP[args.model]
     model, tokenizer = load_model(model_id)
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -261,12 +265,10 @@ if __name__ == "__main__":
         # Obtain steering vector
         steering_vec = get_steering_vec(layer, faithful_dl, unfaithful_dl, model)
 
-        steering_configs = [
-            ("baseline", layer, 0, steering_vec),
-        ]
+        steering_configs = []
 
         for alpha in alpha_list:
-            tup = (f"l{layer}_{alpha}", layer, alpha, steering_vec)
+            tup = (f"{args.model}_l{layer}_{alpha}", layer, alpha, steering_vec)
             steering_configs.append(tup)
 
         count = 0
@@ -279,5 +281,5 @@ if __name__ == "__main__":
 
             print(f"Completed {name}. {len(steering_configs) - count} configs remaining.\n")
 
-    with open("steering_results.pkl", "wb") as f:
+    with open(f"{args.model}_steering_results.pkl", "wb") as f:
         pickle.dump(results, f)

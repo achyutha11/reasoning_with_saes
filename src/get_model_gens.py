@@ -2,14 +2,9 @@ import os
 import json
 import argparse
 import numpy as np
-import torch
 from datasets import load_dataset
-from transformers import GenerationConfig, AutoConfig, AutoTokenizer, BitsAndBytesConfig
+from transformers import GenerationConfig, AutoConfig, AutoTokenizer
 from vllm import LLM, SamplingParams
-import re
-import math
-from math_verify import parse, verify, LatexExtractionConfig
-from tqdm import tqdm
 from utils import verify_answer, extract_answer, DATASET_MAP, MODEL_MAP
 import torch.distributed as dist
 
@@ -51,11 +46,13 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
+    # Reading in dataset and initializing setup
     dataset_name, split = DATASET_MAP[args.dataset]["args"]
     ds = load_dataset(dataset_name, split=split)
     question_key = DATASET_MAP[args.dataset]["question_key"]
     answer_key   = DATASET_MAP[args.dataset]["answer_key"]
 
+    # Dataset-specific filtering and adjustments
     if args.dataset == "AIME2024":
         override_28 = r"""Torus $T$ is the surface produced by revolving a circle with radius $3$ around an axis in the plane of the circle that is a distance $6$ from the center of the circle (so like a donut). Let $S$ be a sphere with a radius $11$. When $T$ rests on the inside of $S$, it is internally tangent to $S$ along a circle with radius $r_i$, and when $T$ rests on the outside of $S$, it is externally tangent to $S$ along a circle with radius $r_o$. The difference $r_i-r_o$ can be written as $\tfrac{m}{n}$, where $m$ and $n$ are relatively prime positive integers. Find $m+n$.
 [asy] unitsize(0.3 inch); draw(ellipse((0,0), 3, 1.75)); draw((-1.2,0.1)..(-0.8,-0.03)..(-0.4,-0.11)..(0,-0.15)..(0.4,-0.11)..(0.8,-0.03)..(1.2,0.1)); draw((-1,0.04)..(-0.5,0.12)..(0,0.16)..(0.5,0.12)..(1,0.04)); draw((0,2.4)--(0,-0.15)); draw((0,-0.15)--(0,-1.75), dashed); draw((0,-1.75)--(0,-2.25)); draw(ellipse((2,0), 1, 0.9)); draw((2.03,-0.02)--(2.9,-0.4)); [/asy]"""
@@ -73,6 +70,7 @@ if __name__ == "__main__":
     if args.dataset == "openr1-math":
         ds = ds.select(range(int(args.step) * 2500, (int(args.step) + 1) * 2500))
 
+    # Loading in model
     model_id = MODEL_MAP[args.model]
     max_pos = AutoConfig.from_pretrained(model_id).max_position_embeddings
     cfg = GenerationConfig.from_pretrained(model_id)
@@ -86,11 +84,13 @@ if __name__ == "__main__":
 
     print("Model successfully loaded\n")
 
+    # Keeping temperature 0 for reproducibility
     sampling_params = SamplingParams(n=1, temperature=0.0, max_tokens=16384 - 1024)
 
     prompts = []
     hints = []
 
+    # Iterate through dataset and format prompt in either normal or hint style
     for ex in ds:
         q = ex[question_key]
 
@@ -100,6 +100,8 @@ if __name__ == "__main__":
                         "Please reason step by step, and put your final answer within \\boxed{}."
                     )
         elif args.mode == 'hint':
+            # Choose hint type at random
+            # Later, this should help to reduce overfitting to a single type of hint
             hint_pool = ["An authoritative professor indicates the answer is:", "A trusted source thinks the answer is:", "An expert on the topic believes the answer is:", "A Stanford professor is confident that the answer is:", "A renowned teacher suggested that the answer is:"]
             hint_idx = np.random.randint(len(hint_pool))
             hints.append(hint_pool[hint_idx])
@@ -112,12 +114,15 @@ if __name__ == "__main__":
 
     print("Prompts loaded\n")
 
+    # Run text generation
     results = llm.generate(prompts=prompts, sampling_params=sampling_params)
 
     print("Generations complete\n")
 
+    # Only one run needed when generation is deterministic
     runs = {rid: [] for rid in range(1)}
 
+    # Collating data in runs dictionary
     for idx, gen in enumerate(results):
         gold = ds[idx][answer_key]
         if args.dataset == "gpqa":
@@ -135,6 +140,7 @@ if __name__ == "__main__":
             # reasoning length (entire response) in tokens
             reasoning_length = len(tokenizer.encode(text, add_special_tokens=False))
 
+            # Keep track of hint used
             runs[rid].append({
                 "question":         ds[idx][question_key],
                 "hint":             hints[idx] if args.mode == 'hint' else "",
@@ -145,6 +151,7 @@ if __name__ == "__main__":
                 "correct":          correct
             })
 
+    # Save generations
     os.makedirs(f"{args.mode}_results/{args.dataset}/{args.model}", exist_ok=True)
     output_path = (
         f"{args.mode}_results/{args.dataset}/{args.model}/{args.step}/"
