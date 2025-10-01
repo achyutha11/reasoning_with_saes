@@ -154,7 +154,7 @@ if __name__ == "__main__":
     # Save generations
     os.makedirs(f"{args.mode}_results/{args.dataset}/{args.model}", exist_ok=True)
     output_path = (
-        f"{args.mode}_results/{args.dataset}/{args.model}/{args.step}/"
+        f"{args.mode}_results/{args.dataset}/{args.model}/"
         "1_runs.json"
     )
     with open(output_path, "w", encoding="utf-8") as f:
