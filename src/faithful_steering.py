@@ -282,5 +282,6 @@ if __name__ == "__main__":
 
             print(f"Completed {name}. {len(steering_configs) - count} configs remaining.\n")
 
-    with open(f"../results/data/{args.model}_steering_results.pkl", "wb") as f:
+    os.makedirs(f"../results/data/{args.model}", exist_ok=True)
+    with open(f"../results/data/{args.model}/steering_results.pkl", "wb") as f:
         pickle.dump(results, f)
