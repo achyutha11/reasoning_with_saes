@@ -138,7 +138,7 @@ def run_steering_exp(name, model_name, model, layer, alpha, steering_vec, questi
     """
 
     # Running count of faithful responses
-    faithful_count = 0
+    # faithful_count = 0
     # List to record all steered generation text
     all_decoded = []
     batch_size = 8
@@ -171,7 +171,7 @@ def run_steering_exp(name, model_name, model, layer, alpha, steering_vec, questi
         # Decode generation
         decoded = tokenizer.batch_decode(outputs, skip_special_tokens=True)
         # Filter out prompt to avoid overcounting faithful responses
-        responses = [{"response": x.split("<think>")[1], "prompt": y, "hint": HINT_MAP[z['hint']]} for x, y, z in zip(decoded, batch_prompts, batch_data)]
+        responses = [{"response": x.split("<think>")[1], "prompt": y, "hint": HINT_MAP[z['hint']], "prediction": z['prediction'], "answer": z["gold"]} for x, y, z in zip(decoded, batch_prompts, batch_data)]
         # Track generated responses
         all_decoded.extend(responses)
 
