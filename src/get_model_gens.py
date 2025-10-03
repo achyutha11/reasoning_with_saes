@@ -85,7 +85,7 @@ if __name__ == "__main__":
     print("Model successfully loaded\n")
 
     # Keeping temperature 0 for reproducibility
-    sampling_params = SamplingParams(n=1, temperature=0.0, max_tokens=16384 - 1024)
+    sampling_params = SamplingParams(n=10, temperature=0.6, max_tokens=16384 - 1024)
 
     prompts = []
     hints = []
@@ -120,7 +120,7 @@ if __name__ == "__main__":
     print("Generations complete\n")
 
     # Only one run needed when generation is deterministic
-    runs = {rid: [] for rid in range(1)}
+    runs = {rid: [] for rid in range(10)}
 
     # Collating data in runs dictionary
     for idx, gen in enumerate(results):
@@ -155,7 +155,7 @@ if __name__ == "__main__":
     os.makedirs(f"{args.mode}_results/{args.dataset}/{args.model}", exist_ok=True)
     output_path = (
         f"{args.mode}_results/{args.dataset}/{args.model}/"
-        "1_runs.json"
+        "10_runs.json"
     )
     with open(output_path, "w", encoding="utf-8") as f:
         json.dump({"runs":[{"run_id":rid,"records":recs} for rid,recs in runs.items()]}, f, indent=4)
