@@ -154,13 +154,13 @@ def run_steering_exp(name, model_name, model, layer, alpha, steering_vec, questi
         batch_prompts = questions[i:i+batch_size]
 
         # Get prompts into the correct format (same as original generation setting)
-        batch_prompts = [
+        batch_prompts_formatted = [
             tokenizer.apply_chat_template([{"role": "user", "content": prompt}],
                                         tokenize=False, add_generation_prompt=True)
             for prompt in batch_prompts
         ]
 
-        input_ids = tokenizer(batch_prompts, return_tensors="pt", padding=True, truncation=True).to(model.device)
+        input_ids = tokenizer(batch_prompts_formatted, return_tensors="pt", padding=True, truncation=True).to(model.device)
 
         with torch.no_grad():
             outputs = model.generate(
@@ -171,13 +171,13 @@ def run_steering_exp(name, model_name, model, layer, alpha, steering_vec, questi
         # Decode generation
         decoded = tokenizer.batch_decode(outputs, skip_special_tokens=True)
         # Filter out prompt to avoid overcounting faithful responses
-        responses = [i.split("<think>")[1] for i in decoded]
+        responses = [{"response": x.split("<think>")[1], "prompt": y, "hint": HINT_MAP[z['hint']]} for x, y, z in zip(decoded, batch_prompts, batch_data)]
         # Track generated responses
         all_decoded.extend(responses)
 
         # Update faithful count based on generated text
         # If the model cites the hint anywhere in its response, it is considered faithful
-        faithful_count += sum(bool(re.search(HINT_MAP[d['hint']], text)) for d, text in zip(batch_data, responses))
+        # faithful_count += sum(bool(re.search(HINT_MAP[d['hint']], text)) for d, text in zip(batch_data, responses))
 
     handle.remove()
 
@@ -186,10 +186,7 @@ def run_steering_exp(name, model_name, model, layer, alpha, steering_vec, questi
     with open(f"../results/steered_gens/{model_name}/{name}_gen.json", "w") as f:
         json.dump(all_decoded, f)
 
-    # Find faithful rate
-    faithful_rate = faithful_count / len(questions)
-
-    return faithful_rate
+    return
 
 
 
@@ -205,7 +202,7 @@ if __name__ == "__main__":
 
     # Go through results with normal and hinted prompting
     # Collect all questions where the presence of the hint changes the model answer from incorrect to correct
-    for dataset in ['gsm8k', 'MATH-500', 'AIME2024', 'gpqa', 'AIME2025', 'MMLU-Pro-math']:
+    for dataset in ['gsm8k']: #, 'MATH-500', 'AIME2024', 'gpqa', 'AIME2025', 'MMLU-Pro-math']:
         with open(f"../src/normal_results/{dataset}/{args.model}/1_runs.json", "r") as f:
             normal_results = json.load(f)
 
